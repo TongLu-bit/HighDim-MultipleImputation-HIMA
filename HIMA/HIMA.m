@@ -1,4 +1,4 @@
-function [imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter)
+function [imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_store_mu, if_store_cov)
     %%%% This function implements the HIMA mode to impute missingness in
     %%%% high-dementional data W0, under the assumption of MAR and the
     %%%% architecture of MCMC.
@@ -10,7 +10,13 @@ function [imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter)
     %%%%% matrix.
     %%%%% num_imp: the number of imputed datasets (denoted by M) .
     %%%%% num_iter: the number of interations (denoted by T).
-   
+    %%%%% if_store_mu: 0 if don't want to store the updated px1 mu matrix 
+    %%%%% at each iteration (for convergence check purpose); 1 otherwise.
+    %%%%% if_store_cov: 0 if don't want to store the updated big pxp cov matrix 
+    %%%%% at each iteration (for convergence check purpose); 1 otherwise.
+    %%%%% Generaly, when p is large, it is recommended to set if_store_cov
+    %%%%% to 0 as it will occupy memory and largely slow down running time.
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Outputs:    
     %%%%%  imp_res:  imputation results, which is a 1xM cell. Each cell 
     %%%%% (i.e., imp_res{1,m}) contains an imputed nxp matrix.
@@ -23,6 +29,7 @@ function [imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter)
     %%%%%  computed at the t-th iteration in the m-th imputed dataset.
     %%%%%  cov_all can be used to plot traceplot and examine convegence.
 
+    
     cd /Users/bright1/Dropbox/Missing/scripts/matlab_MI;
     numRow_W0 = size(W0, 1);
     numCol_W0 = size(W0, 2);
@@ -39,7 +46,10 @@ function [imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter)
     % Initialize mean and covariance matrix:
     mu_W=mean(W,1)';
     cov_W=cov(W);
-
+    d=eig(cov_W); %eigenvalues
+    if all(d>0)==0 %if non-PD
+        cov_W=nearestSPD(cov_W);
+    end
 
     %%%%%%%%% MCMC process %%%%%%%%%%%%%%
     
@@ -100,15 +110,29 @@ function [imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter)
                     %mu_W=mean(mu_W)';
                     
                     %Approximate posterior mode of covariance
-                    [cov_mean,cov_W]=Get_Cov_EB(W0_imp, 50);                  
+                    [~,cov_W]=Get_Cov_EB(W0_imp, 50);                  
                     
                 end
             end
-            mu_all{1,m}(:,t)=mu_W;
-            cov_all{m,t}=cov_W;
-        end
-        imp_res{1, m} = W0_imp;
-    end
 
-end 
+            if if_store_mu==1
+                mu_all{1,m}(:,t)=mu_W;   
+            end 
+            if if_store_cov==1
+                cov_all{m,t}=cov_W; 
+            end
+
+        end 
+    end
+        imp_res{1, m} = W0_imp;
+         if if_store_mu==0
+            disp("Updated normal mean is chosen not to be recorded");
+         end 
+
+         if if_store_cov==0
+             disp("Updated normal covariance is chosen not to be recorded");
+         end 
+end
+
+   
 
