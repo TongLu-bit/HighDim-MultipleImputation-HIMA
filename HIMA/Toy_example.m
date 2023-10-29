@@ -19,7 +19,7 @@ num_imp = 15;    % the number of imputed datasets (M)
 num_iter = 20;   % the number of interations (T)
 
 tic
-[imp_res, mu_all,cov_all] =Get_Imp_EB2(W0,inv_lambda,num_imp, num_iter);
+[imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,1,1);
     %%%%%  imp_res:  imputation results, which is a 1xM cell. Each cell 
     %%%%% (i.e., imp_res{1,m}) contains an imputed nxp matrix.
 

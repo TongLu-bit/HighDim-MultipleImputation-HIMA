@@ -20,17 +20,13 @@ function [imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_stor
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Outputs:    
     %%%%%  imp_res:  imputation results, which is a 1xM cell. Each cell 
     %%%%% (i.e., imp_res{1,m}) contains an imputed nxp matrix.
-
-    %%%%%  mu_all: a 1xM cell. Each cell contains a pxT matrix, recording 
+    %%%%%  mu_all: a 1xM cell if the argument if_store_mu=1. Each cell contains a pxT matrix, recording 
     %%%%%  the updated px1 mu vector over T iterations. 
     %%%%%  mu_all can be used to plot traceplot and examine convegence.
-
-    %%%%%  cov_all: a MxT cell. Each cell contains a pxp covariance matrix
+    %%%%%  cov_all: a MxT cell if the argument if_store_cov=1. Each cell contains a pxp covariance matrix
     %%%%%  computed at the t-th iteration in the m-th imputed dataset.
     %%%%%  cov_all can be used to plot traceplot and examine convegence.
 
-    
-    cd /Users/bright1/Dropbox/Missing/scripts/matlab_MI;
     numRow_W0 = size(W0, 1);
     numCol_W0 = size(W0, 2);
 
@@ -64,11 +60,12 @@ function [imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_stor
 
         W0_imp = W;  % Reset to default W for each imputation dataset. 
 
-
         for t = 1:num_iter
-            text2 = ['Current iteration: t=',num2str(t)];
-            disp(text2)
 
+            if mod(t,10)==0
+                text2 = ['Current iteration: t=',num2str(t)];
+                disp(text2)
+            end
 
             for s = 1:numRow_W0
                      
@@ -100,16 +97,15 @@ function [imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_stor
                     W0_imp(s, mis_idx) = na_imp_mean;
 
                     %%%%%%%%%%%%%% Posterior P-step  %%%%%%%%%%%%%%
-                    %Draw mu
+                    % Draw mu
                     pos_mu=mean(W0_imp, 1)';
                     pos_sigma=cov_W/length(pos_mu);
 
                     mu_W = mvnrnd(pos_mu, pos_sigma, 1);
                     mu_W=mu_W';
-
                     %mu_W=mean(mu_W)';
                     
-                    %Approximate posterior mode of covariance
+                    % Approximate posterior mode of covariance
                     [~,cov_W]=Get_Cov_EB(W0_imp, 50);                  
                     
                 end
@@ -122,16 +118,18 @@ function [imp_res, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_stor
                 cov_all{m,t}=cov_W; 
             end
 
-        end 
-    end
-        imp_res{1, m} = W0_imp;
-         if if_store_mu==0
-            disp("Updated normal mean is chosen not to be recorded");
-         end 
+        end
 
-         if if_store_cov==0
-             disp("Updated normal covariance is chosen not to be recorded");
-         end 
+        imp_res{1, m} = W0_imp;
+        if if_store_mu==0
+            disp("Updated normal mean is chosen not to be recorded over iterations");
+        end 
+        
+        if if_store_cov==0
+            disp("Updated normal covariance is chosen not to be recorded over iterations");
+        end 
+     
+    end
 end
 
    

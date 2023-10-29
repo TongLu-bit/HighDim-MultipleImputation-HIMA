@@ -1,0 +1,215 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>HIMA: A Multiple Imputation Method for High-Dimensional Neuroimaging Data</title><meta name="generator" content="MATLAB 9.13"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2023-10-29"><meta name="DC.source" content="HIMA_demo.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>HIMA: A Multiple Imputation Method for High-Dimensional Neuroimaging Data</h1><!--introduction--><p>HIMA develops a new computational strategy for sampling large covariance matrices based on a robustly estimated posterior mode, significantly enhancing computational efficiency and numerical stability.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Import data</a></li><li><a href="#2">Kernel smooth on subjects:</a></li><li><a href="#3">Imputation using HIMA</a></li><li><a href="#4">Scaled back to imputed results</a></li><li><a href="#5">Traceplot of mean</a></li></ul></div><h2 id="1">Import data</h2><p>W0: the input matrix containing values of p variables across n subjects</p><pre class="codeinput">load(<span class="string">'data.mat'</span>);
+W0=data;
+</pre><h2 id="2">Kernel smooth on subjects:</h2><p>Align smoothed probability density estimate so that the subject-level random effect is taken into account.</p><pre class="codeinput">W0_mean = mean(W0.', <span class="string">'omitnan'</span>); <span class="comment">%1*58</span>
+total_mean = mean(W0_mean);
+W0 = W0 - (W0_mean - total_mean).';
+</pre><h2 id="3">Imputation using HIMA</h2><p>The main result that the function "HIMA" returns is called "imp_res_scaled", which is a 1xM cell. Each cell (i.e., imp_res{1,m}) contains an imputed nxp matrix.</p><pre class="codeinput">inv_lambda = 0.1; <span class="comment">% Tuning parameters for the diagonals of covariance</span>
+num_imp = 5;     <span class="comment">% the number of imputed datasets (M)</span>
+num_iter = 30;    <span class="comment">% the number of interations (T)</span>
+if_store_mu=1;   <span class="comment">% 0 if don't want to store the updated mu over iterations</span>
+if_store_cov=0;  <span class="comment">% 0 if don't want to store the updated cov over iterations</span>
+
+tic
+[imp_res_scaled, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_store_mu, if_store_cov);
+    <span class="comment">%%%%%  imp_res_scaled:  imputation results, which is a 1xM cell. Each cell</span>
+    <span class="comment">%%%%% (i.e., imp_res{1,m}) contains an imputed nxp matrix.</span>
+
+    <span class="comment">%%%%%  mu_all: a 1xM cell. Each cell contains a pxT matrix, recording</span>
+    <span class="comment">%%%%%  the updated px1 mu vector over T iterations.</span>
+    <span class="comment">%%%%%  mu_all can be used to plot traceplot and examine convegence.</span>
+
+    <span class="comment">%%%%%  cov_all: a MxT cell. Each cell contains a pxp covariance matrix</span>
+    <span class="comment">%%%%%  computed at the t-th iteration in the m-th imputed dataset.</span>
+    <span class="comment">%%%%%  cov_all can be used to plot traceplot and examine convegence.</span>
+timeElapsed = toc <span class="comment">%running time in seconds</span>
+display(<span class="string">"in seconds"</span>)
+</pre><pre class="codeoutput">Current imputed data set: m=1
+Current iteration: t=10
+Current iteration: t=20
+Current iteration: t=30
+Updated normal covariance is chosen not to be recorded over iterations
+Current imputed data set: m=2
+Current iteration: t=10
+Current iteration: t=20
+Current iteration: t=30
+Updated normal covariance is chosen not to be recorded over iterations
+Current imputed data set: m=3
+Current iteration: t=10
+Current iteration: t=20
+Current iteration: t=30
+Updated normal covariance is chosen not to be recorded over iterations
+Current imputed data set: m=4
+Current iteration: t=10
+Current iteration: t=20
+Current iteration: t=30
+Updated normal covariance is chosen not to be recorded over iterations
+Current imputed data set: m=5
+Current iteration: t=10
+Current iteration: t=20
+Current iteration: t=30
+Updated normal covariance is chosen not to be recorded over iterations
+
+timeElapsed =
+
+   58.9055
+
+    "in seconds"
+
+</pre><h2 id="4">Scaled back to imputed results</h2><p>Reverse back to the scale before performing kernel smoothing</p><pre class="codeinput">imp_res = cellfun(@(x) x + (W0_mean - total_mean).', imp_res_scaled, <span class="string">'UniformOutput'</span>, false);
+</pre><h2 id="5">Traceplot of mean</h2><pre class="codeinput">voxel_j=50; <span class="comment">%select a voxel (e.g. the 120-th voxel) to plot its traceplot</span>
+x=1:num_iter;
+
+set(figure, <span class="string">'Position'</span>, [100, 100, 800, 400]);
+set(gca,<span class="string">'FontSize'</span>,18)
+set(gca,<span class="string">'YTick'</span>)
+<span class="keyword">for</span> m=1:num_imp <span class="comment">% go through each imputed dataset</span>
+    mu_dataset=mu_all{1,m};
+    y=mu_dataset(voxel_j,:);
+
+    hold <span class="string">on</span>
+    plot(x,y,<span class="string">'-'</span>,<span class="string">'LineWidth'</span>,1.5)
+<span class="keyword">end</span>
+xlabel(<span class="string">'Iteration numbers'</span>,<span class="string">'FontSize'</span>,16,<span class="string">'FontWeight'</span>,<span class="string">'bold'</span>)
+ylabel(<span class="string">'Mean of Voxel #120 '</span>,<span class="string">'FontSize'</span>,16,<span class="string">'FontWeight'</span>,<span class="string">'bold'</span>)
+title(<span class="string">'Trace plot of mean in MVN for a random selected voxel'</span>,<span class="string">'fontweight'</span>,<span class="string">'bold'</span>,<span class="string">'fontsize'</span>,14)
+hold <span class="string">off</span>
+</pre><pre class="codeoutput">  0&times;0 empty cell array
+
+</pre><img vspace="5" hspace="5" src="HIMA_demo_01.png" alt=""> <p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% HIMA: A Multiple Imputation Method for High-Dimensional Neuroimaging Data
+% HIMA develops a new computational strategy for sampling large covariance matrices 
+% based on a robustly estimated posterior mode, 
+% significantly enhancing computational efficiency and numerical stability.  
+
+%% Import data
+% W0: the input matrix containing values of p variables across n subjects
+load('data.mat');
+W0=data;
+%% Kernel smooth on subjects: 
+% Align smoothed probability density estimate so that the subject-level 
+% random effect is taken into account.
+
+W0_mean = mean(W0.', 'omitnan'); %1*58
+total_mean = mean(W0_mean);
+W0 = W0 - (W0_mean - total_mean).';
+
+%% Imputation using HIMA
+% The main result that the function "HIMA" returns is called
+% "imp_res_scaled", which is a 1xM cell. Each cell (i.e., imp_res{1,m}) contains an imputed nxp matrix.
+inv_lambda = 0.1; % Tuning parameters for the diagonals of covariance
+num_imp = 5;     % the number of imputed datasets (M) 
+num_iter = 30;    % the number of interations (T)
+if_store_mu=1;   % 0 if don't want to store the updated mu over iterations
+if_store_cov=0;  % 0 if don't want to store the updated cov over iterations
+
+tic
+[imp_res_scaled, mu_all,cov_all] =HIMA(W0,inv_lambda,num_imp, num_iter,if_store_mu, if_store_cov);
+    %%%%%  imp_res_scaled:  imputation results, which is a 1xM cell. Each cell 
+    %%%%% (i.e., imp_res{1,m}) contains an imputed nxp matrix.
+
+    %%%%%  mu_all: a 1xM cell. Each cell contains a pxT matrix, recording 
+    %%%%%  the updated px1 mu vector over T iterations. 
+    %%%%%  mu_all can be used to plot traceplot and examine convegence.
+
+    %%%%%  cov_all: a MxT cell. Each cell contains a pxp covariance matrix
+    %%%%%  computed at the t-th iteration in the m-th imputed dataset.
+    %%%%%  cov_all can be used to plot traceplot and examine convegence.
+timeElapsed = toc %running time in seconds
+display("in seconds")
+
+%% Scaled back to imputed results
+% Reverse back to the scale before performing kernel smoothing
+imp_res = cellfun(@(x) x + (W0_mean - total_mean).', imp_res_scaled, 'UniformOutput', false);
+
+%% Traceplot of mean 
+voxel_j=50; %select a voxel (e.g. the 120-th voxel) to plot its traceplot
+x=1:num_iter; 
+
+set(figure, 'Position', [100, 100, 800, 400]);
+set(gca,'FontSize',18)
+set(gca,'YTick')
+for m=1:num_imp % go through each imputed dataset 
+    mu_dataset=mu_all{1,m};
+    y=mu_dataset(voxel_j,:);
+    
+    hold on
+    plot(x,y,'-','LineWidth',1.5)   
+end 
+xlabel('Iteration numbers','FontSize',16,'FontWeight','bold')
+ylabel('Mean of Voxel #120 ','FontSize',16,'FontWeight','bold')
+title('Trace plot of mean in MVN for a random selected voxel','fontweight','bold','fontsize',14)
+hold off
+
+
+##### SOURCE END #####
+--></body></html>
